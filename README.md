@@ -1,6 +1,6 @@
-# Shor Test Runner
+# Test Runner
 
-Shor Test Runner is an automated UI regression testing server that executes tests on multiple browsers and provides a VNC connection for real-time viewing of test execution.
+Test Runner is an automated UI regression testing server that executes tests on multiple browsers and provides a VNC connection for real-time viewing of test execution.
 
 ## Features
 
