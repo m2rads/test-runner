@@ -1,4 +1,4 @@
-import express, { Request, Response, NextFunction } from 'express';
+import express, { Request, Response } from 'express';
 import { Pool } from 'pg';
 import { Builder } from 'selenium-webdriver';
 import chrome from 'selenium-webdriver/chrome';
@@ -12,8 +12,9 @@ import { ParamsDictionary } from 'express-serve-static-core';
 import { ParsedQs } from 'qs';
 
 const app = express();
-const port = parseInt(process.env.PORT || '3000', 10);
 const host = process.env.HOST || '0.0.0.0';
+const ports = [3000, 8080];
+let currentPortIndex = 0;
 
 // Swagger definition
 const swaggerOptions = {
@@ -26,7 +27,19 @@ const swaggerOptions = {
     },
     servers: [
       {
-        url: `http://localhost:${port}`,
+        url: '{protocol}://{hostname}:{port}',
+        variables: {
+          protocol: {
+            enum: ['http', 'https'],
+            default: 'http'
+          },
+          hostname: {
+            default: host
+          },
+          port: {
+            default: ports[0].toString()
+          }
+        }
       },
     ],
   },
@@ -143,7 +156,7 @@ interface ExecuteTestParams extends ParamsDictionary {
   id: string;
 }
 
-app.post<ExecuteTestParams, any, any, ParsedQs, Record<string, any>>('/execute-test/:id', async (req: Request<ExecuteTestParams>, res: Response, next: NextFunction) => {
+app.post<ExecuteTestParams, any, any, ParsedQs, Record<string, any>>('/execute-test/:id', async (req: Request<ExecuteTestParams>, res: Response) => {
   const testId = req.params.id;
   
   try {
@@ -172,7 +185,23 @@ app.post<ExecuteTestParams, any, any, ParsedQs, Record<string, any>>('/execute-t
   }
 });
 
-app.listen(port, host, () => {
-  console.log(`Server running at http://${host}:${port}`);
-  console.log(`Swagger UI available at http://${host}:${port}/api-docs`);
-}) as unknown as void;
+function startServer(portIndex: number) {
+  const port = ports[portIndex];
+  app.listen(port, host, () => {
+    console.log(`Server running at http://${host}:${port}`);
+    console.log(`Swagger UI available at http://${host}:${port}/api-docs`);
+  }).on('error', (err: NodeJS.ErrnoException) => {
+    if (err.code === 'EADDRINUSE') {
+      console.log(`Port ${port} is busy, trying next port`);
+      if (portIndex < ports.length - 1) {
+        startServer(portIndex + 1);
+      } else {
+        console.error('All ports are busy. Unable to start server.');
+      }
+    } else {
+      console.error(err);
+    }
+  });
+}
+
+startServer(currentPortIndex);
